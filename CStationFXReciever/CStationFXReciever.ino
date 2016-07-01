@@ -3,148 +3,110 @@
 
 #define MATRIX_COUNT 5
 #define MATRIX_ROWS_COUNT 8
-#define MATRIX_STATE_BUFFER_SIZE 100
-#define BAUD_RATE 38400
+#define MATRIX_STATE_BUFFER_SIZE 4
+#define BAUD_RATE 115200
 
-typedef byte LEDMatrixState[MATRIX_ROWS_COUNT];
+#define MAX_RECIEVE_INTERVAL 15000
+
+#define __PACKED __attribute__((packed))
+
+typedef uint8_t LEDMatrixState[MATRIX_ROWS_COUNT] __PACKED;
 struct LEDScreenState {
-    unsigned block_index;
-    unsigned timeout;
-    LEDMatrixState blocks[MATRIX_COUNT];
-    unsigned hash;
-};
+    uint32_t block_index __PACKED;
+    uint32_t timeout __PACKED;
+    LEDMatrixState blocks[MATRIX_COUNT] __PACKED;
+    uint8_t played __PACKED;
+    uint16_t hash __PACKED;
+} __PACKED;
 
-struct LEDScreenState state_buffer[MATRIX_STATE_BUFFER_SIZE];
+struct LEDScreenState state_buffer[MATRIX_STATE_BUFFER_SIZE] = {0};
+unsigned buffer_playposition = 0;
+unsigned buffer_writeposition = 0;
+bool new_state;
 
 Crc16 crc;
 LedControl lc=LedControl(12, 11, 10, MATRIX_COUNT);
-byte page = 0;
-
-unsigned long delaytime=25;
+uint32_t last_played_pos;
+uint32_t last_readed_pos;
+unsigned long int last_recieve_millis = 0;
 
 void setup() {
   Serial.begin(BAUD_RATE);
-  for (byte i=0; i<MATRIX_COUNT; i++) {
-    lc.shutdown(i,false);
-    lc.setIntensity(i,1);
-    lc.clearDisplay(i);
+  pinMode(13, OUTPUT);
+  for (byte page=0; page<MATRIX_COUNT; page++) {
+    lc.shutdown(page,false);
+    lc.setIntensity(page,1);
+    lc.clearDisplay(page);
   }
   state_buffer[0].block_index = 0;
-  state_buffer[0].timeout = 0;
-  state_buffer[0].blocks[0][0] = 0;
-  state_buffer[0].hash = crc.XModemCrc((uint8_t*) (void*) &state_buffer, 0, sizeof(LEDScreenState)-sizeof(unsigned));
+  last_played_pos = 0;
+  last_readed_pos = 0;
 }
 
-void writeArduinoOnMatrix() {
-  byte a[5]={B01111110,B10001000,B10001000,B10001000,B01111110};
-  byte r[5]={B00111110,B00010000,B00100000,B00100000,B00010000};
-  byte d[5]={B00011100,B00100010,B00100010,B00010010,B11111110};
-  byte u[5]={B00111100,B00000010,B00000010,B00000100,B00111110};
-  byte i[5]={B00000000,B00100010,B10111110,B00000010,B00000000};
-  byte n[5]={B00111110,B00010000,B00100000,B00100000,B00011110};
-  byte o[5]={B00011100,B00100010,B00100010,B00100010,B00011100};
-
-  lc.setRow(page,0,a[0]);
-  lc.setRow(page,1,a[1]);
-  lc.setRow(page,2,a[2]);
-  lc.setRow(page,3,a[3]);
-  lc.setRow(page,4,a[4]);
-  delay(delaytime);
-  lc.setRow(page,0,r[0]);
-  lc.setRow(page,1,r[1]);
-  lc.setRow(page,2,r[2]);
-  lc.setRow(page,3,r[3]);
-  lc.setRow(page,4,r[4]);
-  delay(delaytime);
-  lc.setRow(page,0,d[0]);
-  lc.setRow(page,1,d[1]);
-  lc.setRow(page,2,d[2]);
-  lc.setRow(page,3,d[3]);
-  lc.setRow(page,4,d[4]);
-  delay(delaytime);
-  lc.setRow(page,0,u[0]);
-  lc.setRow(page,1,u[1]);
-  lc.setRow(page,2,u[2]);
-  lc.setRow(page,3,u[3]);
-  lc.setRow(page,4,u[4]);
-  delay(delaytime);
-  lc.setRow(page,0,i[0]);
-  lc.setRow(page,1,i[1]);
-  lc.setRow(page,2,i[2]);
-  lc.setRow(page,3,i[3]);
-  lc.setRow(page,4,i[4]);
-  delay(delaytime);
-  lc.setRow(page,0,n[0]);
-  lc.setRow(page,1,n[1]);
-  lc.setRow(page,2,n[2]);
-  lc.setRow(page,3,n[3]);
-  lc.setRow(page,4,n[4]);
-  delay(delaytime);
-  lc.setRow(page,0,o[0]);
-  lc.setRow(page,1,o[1]);
-  lc.setRow(page,2,o[2]);
-  lc.setRow(page,3,o[3]);
-  lc.setRow(page,4,o[4]);
-  delay(delaytime);
-  lc.setRow(page,0,0);
-  lc.setRow(page,1,0);
-  lc.setRow(page,2,0);
-  lc.setRow(page,3,0);
-  lc.setRow(page,4,0);
-  delay(delaytime);
-}
-
-void rows() {
-  for(int row=0;row<8;row++) {
-    delay(delaytime);
-    lc.setRow(page,row,B10100000);
-    delay(delaytime);
-    lc.setRow(page,row,(byte)0);
-    for(int i=0;i<row;i++) {
-      delay(delaytime);
-      lc.setRow(page,row,B10100000);
-      delay(delaytime);
-      lc.setRow(page,row,(byte)0);
+void setState(LEDScreenState* state) {
+  if (state->played) return;
+  for(byte page=0; page<MATRIX_COUNT; page++) {
+    for(byte row=0; row<MATRIX_ROWS_COUNT; row++) {
+      lc.setRow(page,row,state->blocks[page][row]);
     }
   }
+  state->played = true;
+  last_played_pos = state->block_index;
+  delay(state->timeout);
 }
 
-void columns() {
-  for(int col=0;col<8;col++) {
-    delay(delaytime);
-    lc.setColumn(page,col,B10100000);
-    delay(delaytime);
-    lc.setColumn(page,col,(byte)0);
-    for(int i=0;i<col;i++) {
-      delay(delaytime);
-      lc.setColumn(page,col,B10100000);
-      delay(delaytime);
-      lc.setColumn(page,col,(byte)0);
-    }
-  }
-}
-
-void single() {
-  for(int row=0;row<8;row++) {
-    for(int col=0;col<8;col++) {
-      delay(delaytime);
-      lc.setLed(page,row,col,true);
-      delay(delaytime);
-      for(int i=0;i<col;i++) {
-        lc.setLed(page,row,col,false);
-        delay(delaytime);
-        lc.setLed(page,row,col,true);
-        delay(delaytime);
-      }
-    }
-  }
+void sendPosConfirmation(uint32_t pos) {
+  byte* last_pos = (byte*) (void*) &pos;
+  Serial.write('S');
+  Serial.write('C');
+  Serial.write('E');
+  Serial.write(last_pos[0]);
+  Serial.write(last_pos[1]);
+  Serial.write(last_pos[2]);
+  Serial.write(last_pos[3]);
+  Serial.flush();
 }
 
 void loop() { 
-  if (page>=MATRIX_COUNT) page=0;
-  writeArduinoOnMatrix();
-  rows();
-  columns();
-  single();
-  page++;
+  new_state = false;
+  while (Serial.available() >= sizeof(LEDScreenState)) {
+    last_recieve_millis = millis();
+    char* next_pos = (char*) (void*) &(state_buffer[buffer_writeposition]);
+    for(byte i=0; i<sizeof(LEDScreenState); i++) {
+      next_pos[i] = Serial.read();
+    }
+    uint16_t ihash = 1;//state_buffer[buffer_writeposition].hash;
+    state_buffer[buffer_writeposition].hash = 0;
+    uint16_t chash = 1;//crc.XModemCrc((uint8_t*) (void*) next_pos, 0, sizeof(LEDScreenState));
+    if (chash == ihash) {
+      last_readed_pos = state_buffer[buffer_writeposition].block_index;
+      buffer_writeposition++;
+      if (buffer_writeposition>=MATRIX_STATE_BUFFER_SIZE) buffer_writeposition = 0;
+    } else {
+      digitalWrite(13, HIGH);
+      while (Serial.available()) Serial.read();
+      delay(500);
+      digitalWrite(13, LOW);
+      delay(500);
+      digitalWrite(13, HIGH);
+      delay(500);
+      digitalWrite(13, LOW);
+    }
+    new_state = true;
+    if (Serial.available() && (Serial.available() < sizeof(LEDScreenState))) {
+      delay(10);
+    }
+  }
+  if (new_state) {
+    sendPosConfirmation(last_readed_pos);
+  } else {
+    if (buffer_playposition != buffer_writeposition) {
+      setState(&(state_buffer[buffer_playposition]));
+      buffer_playposition++;
+      if (buffer_playposition>=MATRIX_STATE_BUFFER_SIZE) buffer_playposition = 0;
+    } else if ((millis()-last_recieve_millis) >= MAX_RECIEVE_INTERVAL) {
+      sendPosConfirmation(last_played_pos);
+      last_recieve_millis = millis();
+    }
+  }
 }

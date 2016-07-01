@@ -23,6 +23,7 @@ private slots:
     void showResponse(const QString &s);
     void processError(const QString &s);
     void processTimeout(const QString &s);
+    void processLog(const QString &s);
 
     void on_toolButton_refresh_clicked();
 

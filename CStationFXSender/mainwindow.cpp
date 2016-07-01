@@ -16,6 +16,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     connect(&thread, SIGNAL(error(QString)), this, SLOT(processError(QString)));
     connect(&thread, SIGNAL(timeout(QString)), this, SLOT(processTimeout(QString)));
+    connect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
 }
 
 MainWindow::~MainWindow()
@@ -29,15 +30,14 @@ void MainWindow::transaction()
 {
     ui->textEdit_log->append(tr("Status: Running, connected to port %1.").arg(ui->comboBox_port->currentText()));
     ui->statusBar->showMessage(tr("Status: Running, connected to port %1.").arg(ui->comboBox_port->currentText()), 10000);
-    thread.listen(ui->comboBox_port->currentText(), 10000, generator);
+    thread.listen(ui->comboBox_port->currentText(), 30000, generator);
 }
 
 void MainWindow::showResponse(const QString &s)
 {
     ui->textEdit_log->append(tr("Traffic, transaction #%1:"
-                                "\n\r-request: %2"
-                                "\n\r-response: %3")
-                             .arg(++transactionCount).arg("request text").arg(s));
+                                "\n-response: %3")
+                             .arg(++transactionCount).arg(s));
 }
 
 void MainWindow::processError(const QString &s)
@@ -50,6 +50,11 @@ void MainWindow::processTimeout(const QString &s)
 {
     ui->textEdit_log->append(tr("Status: Running, %1.").arg(s));
     ui->statusBar->showMessage(tr("No traffic."), 5000);
+}
+
+void MainWindow::processLog(const QString &s)
+{
+    ui->textEdit_log->append(s);
 }
 
 void MainWindow::on_pushButton_start_clicked()

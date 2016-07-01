@@ -14,7 +14,6 @@ SerialFXWriter::~SerialFXWriter()
 {
     mutex.lock();
     quit = true;
-    cond.wakeOne();
     mutex.unlock();
     wait();
 }
@@ -24,20 +23,17 @@ void SerialFXWriter::listen(const QString &portName, int waitTimeout, DataGenera
     QMutexLocker locker(&mutex);
     this->portName = portName;
     this->waitTimeout = waitTimeout;
-    this->generator = c_generator;
-    this->request_write_position = 0;
-    this->request_generate_position = 0;
-    this->request_confirm_position = 0;
+    generator = c_generator;
+    half_buf_size = generator->getBufferSize() / 2;
     resetBuffers();
     if (!isRunning())
         start();
-    else
-        cond.wakeOne();
 }
 
 void SerialFXWriter::run()
 {
     bool currentPortNameChanged = false;
+    bool data_written = false;
 
     mutex.lock();
     QString currentPortName;
@@ -45,12 +41,12 @@ void SerialFXWriter::run()
         currentPortName = portName;
         currentPortNameChanged = true;
     }
-
     int currentWaitTimeout = waitTimeout;
-    QByteArray currentRequest = request;
     mutex.unlock();
 
     QSerialPort serial;
+
+    serial.setBaudRate(115200);
 
     while (!quit) {
 
@@ -65,29 +61,37 @@ void SerialFXWriter::run()
             }
         }
 
-        // write request
-        serial.write(currentRequest);
-        if (serial.waitForBytesWritten(waitTimeout)) {
-            // read response
-            if (serial.waitForReadyRead(currentWaitTimeout)) {
-                QByteArray responseData = serial.readAll();
-                while (serial.waitForReadyRead(10))
-                    responseData += serial.readAll();
+        fillBuffer();
 
-                QString response(responseData);
+        while(request_write_position->block_index < send_buffer.end()->block_index) {
+            request_write_position++;
+            serial.write((char*)(void*) &(request_write_position.i->t), sizeof(LEDScreenState));
+            data_written = true;
+            emit log(tr("Writing state %1 to serial...").arg(request_write_position->block_index));
+        }
 
-                emit this->response(response);
-
-            } else {
-                emit timeout(tr("Wait read response timeout %1")
+        if (data_written) {
+            if (!serial.waitForBytesWritten(waitTimeout)) {
+                emit timeout(tr("Wait write request timeout %1")
                              .arg(QTime::currentTime().toString()));
             }
+            data_written = false;
+        }
+
+        // read response
+        if (serial.waitForReadyRead(currentWaitTimeout)) {
+            emit log("Ready read...");
+            QByteArray responseData = serial.readAll();
+            while (serial.waitForReadyRead(10))
+                responseData += serial.readAll();
+
+            responseCheck(responseData);
         } else {
-            emit timeout(tr("Wait write request timeout %1")
+            emit timeout(tr("Wait read response timeout %1")
                          .arg(QTime::currentTime().toString()));
         }
+
         mutex.lock();
-        cond.wait(&mutex);
         if (currentPortName != portName) {
             currentPortName = portName;
             currentPortNameChanged = true;
@@ -95,11 +99,6 @@ void SerialFXWriter::run()
             currentPortNameChanged = false;
         }
         currentWaitTimeout = waitTimeout;
-
-
-        nextMatrixState();
-
-        currentRequest = request;
         mutex.unlock();
     }
 }
@@ -109,25 +108,56 @@ void SerialFXWriter::do_stop()
     if (isRunning()) quit = true;
 }
 
-void SerialFXWriter::nextMatrixState()
-{
-    quint8 arr_len = MATRIX_COUNT*8;
-    char arr[MATRIX_COUNT*8];
-
-    for(quint8 i=0; i<arr_len; i++) {
-        arr[i] = (qrand() % 255) & (qrand() % 255);
-    }
-
-    request.setRawData(arr, MATRIX_COUNT*8);
-}
-
 void SerialFXWriter::resetBuffers()
 {
-    // @todo
+    emit log("Resetting buffers...");
+    LEDScreenState state = {0};
+    full_index = 0;
+    send_buffer.clear();
+    state = generator->getNextState(full_index++);
+    send_buffer.append(state);
+    request_write_position = send_buffer.begin();
+    request_confirm_position = send_buffer.begin();
 }
 
-void SerialFXWriter::writeNext()
+void SerialFXWriter::fillBuffer()
 {
-    // @todo
-    // generator->FillBuffer(...);
+    LEDScreenState state = {0};
+    while(send_buffer.size() < half_buf_size) {
+        emit log("Generating block "+QString::number(full_index)+"...");
+        state = generator->getNextState(full_index++);
+        send_buffer.append(state);
+    }
+}
+
+void SerialFXWriter::responseCheck(QByteArray response)
+{
+    emit this->response(((QString) response.toHex()) + " (" + QString::fromLocal8Bit(response) + ")");
+
+    bool confirm_set = false;
+    uint32_t last_confirmed_position;
+    uint8_t data[4];
+    for(int i=0; i<response.size()-6; i++) {
+        if (response.at(i) == 'S' && response.at(i+1) == 'C' && response.at(i+2) == 'E') {
+            data[0] = response.at(i+3);
+            data[1] = response.at(i+4);
+            data[2] = response.at(i+5);
+            data[3] = response.at(i+6);
+            last_confirmed_position = *((quint32*)(void*)data);
+            confirm_set = true;
+            i+=6;
+        }
+    }
+    if (confirm_set) setConfirmPosition(last_confirmed_position);
+}
+
+void SerialFXWriter::setConfirmPosition(uint32_t confirm_position)
+{
+    emit log("Confirmed position: "+QString::number(confirm_position));
+    request_confirm_position = send_buffer.begin();
+    while((request_confirm_position!=send_buffer.end()) && (request_confirm_position->block_index < confirm_position)) {
+        request_confirm_position++;
+        send_buffer.removeFirst();
+    }
+    request_write_position = request_confirm_position;
 }

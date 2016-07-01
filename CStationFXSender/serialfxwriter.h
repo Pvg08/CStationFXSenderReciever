@@ -4,10 +4,9 @@
 #include <QThread>
 #include <QMutex>
 #include <QWaitCondition>
+#include <QLinkedList>
 
 #include "datagenerator.h"
-
-#define BUFFER_COUNT 20
 
 class SerialFXWriter : public QThread
 {
@@ -25,20 +24,24 @@ signals:
     void response(const QString &s);
     void error(const QString &s);
     void timeout(const QString &s);
+    void log(const QString &s);
 
 private:
     QString portName;
-    QVector<QByteArray> request;
-    unsigned request_write_position, request_generate_position, request_confirm_position;
+    QLinkedList<LEDScreenState> send_buffer;
+    QLinkedList<LEDScreenState>::iterator request_write_position, request_confirm_position;
     int waitTimeout;
     QMutex mutex;
-    QWaitCondition cond;
     bool quit;
     DataGenerator* generator;
+    quint64 full_index;
+    unsigned half_buf_size;
 
-    void nextMatrixState();
     void resetBuffers();
-    void writeNext();
+    void fillBuffer();
+    void responseCheck(QByteArray response);
+
+    void setConfirmPosition(uint32_t confirm_position);
 };
 
 #endif // SERIALFXWRITER_H
