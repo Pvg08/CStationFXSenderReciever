@@ -6,7 +6,7 @@
 
 #define MATRIX_COUNT 5
 #define MATRIX_ROWS_COUNT 8
-#define MATRIX_STATE_BUFFER_SIZE 4
+#define MATRIX_STATE_BUFFER_SIZE 6
 
 #if defined(WIN32) || defined(__WATCOMC__) || defined(_WIN32) || defined(__WIN32__)
     #define __PACKED                         /* dummy */
@@ -20,10 +20,10 @@
 
 typedef uint8_t LEDMatrixState[MATRIX_ROWS_COUNT] __PACKED;
 struct LEDScreenState {
-    uint32_t block_index __PACKED;
+    uint32_t state_index __PACKED;
     uint32_t timeout __PACKED;
     LEDMatrixState blocks[MATRIX_COUNT] __PACKED;
-    uint8_t played __PACKED;
+    uint16_t played __PACKED;
     uint16_t hash __PACKED;
 } __PACKED;
 
@@ -35,14 +35,14 @@ class DataGenerator
 {
 public:
     DataGenerator();
-    quint16 getDataSize();
-    quint16 getBufferSize();
+    uint16_t getDataSize();
+    uint16_t getBufferSize();
 
-    LEDScreenState getNextState(uint32_t full_index);
-    LEDScreenState getEmptyState(uint32_t full_index);
+    void fillNextState(uint32_t full_index, LEDScreenState* state);
+    void fillEmptyState(uint32_t full_index, LEDScreenState* state);
 private:
-    quint16 state_size;
-    quint16 state_count;
+    uint16_t state_size;
+    uint16_t state_count;
     Crc16 crc;
 };
 

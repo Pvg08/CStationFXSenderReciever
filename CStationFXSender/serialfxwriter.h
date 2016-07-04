@@ -4,7 +4,7 @@
 #include <QThread>
 #include <QMutex>
 #include <QWaitCondition>
-#include <QLinkedList>
+#include <QVector>
 
 #include "datagenerator.h"
 
@@ -28,13 +28,13 @@ signals:
 
 private:
     QString portName;
-    QLinkedList<LEDScreenState> send_buffer;
-    QLinkedList<LEDScreenState>::iterator request_write_position, request_confirm_position;
+    QVector<LEDScreenState> send_buffer;
+    unsigned request_write_position, request_confirm_position, request_generate_position;
     int waitTimeout;
     QMutex mutex;
     bool quit;
     DataGenerator* generator;
-    quint64 full_index;
+    uint32_t state_index;
     unsigned half_buf_size;
 
     void resetBuffers();
@@ -42,6 +42,7 @@ private:
     void responseCheck(QByteArray response);
 
     void setConfirmPosition(uint32_t confirm_position);
+    unsigned getNextPosition(unsigned cur_position);
 };
 
 #endif // SERIALFXWRITER_H

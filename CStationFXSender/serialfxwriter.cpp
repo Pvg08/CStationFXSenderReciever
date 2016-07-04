@@ -8,6 +8,10 @@ QT_USE_NAMESPACE
 SerialFXWriter::SerialFXWriter(QObject *parent)
     : QThread(parent), waitTimeout(0), quit(false)
 {
+    state_index = 0;
+    request_write_position = 0;
+    request_confirm_position = 0;
+    request_generate_position = 0;
 }
 
 SerialFXWriter::~SerialFXWriter()
@@ -63,11 +67,15 @@ void SerialFXWriter::run()
 
         fillBuffer();
 
-        while(request_write_position->block_index < send_buffer.end()->block_index) {
-            request_write_position++;
-            serial.write((char*)(void*) &(request_write_position.i->t), sizeof(LEDScreenState));
-            data_written = true;
-            emit log(tr("Writing state %1 to serial...").arg(request_write_position->block_index));
+        if (request_write_position != request_generate_position) {
+            while(request_write_position != request_generate_position) {
+                request_write_position = getNextPosition(request_write_position);
+                LEDScreenState state = send_buffer.at(request_write_position);
+                serial.write((char*)(void*) &state, sizeof(LEDScreenState));
+                emit log(tr("Writing state %1 to serial...").arg(state.state_index));
+                data_written = true;
+            }
+            request_write_position = request_generate_position;
         }
 
         if (data_written) {
@@ -110,24 +118,45 @@ void SerialFXWriter::do_stop()
 
 void SerialFXWriter::resetBuffers()
 {
-    emit log("Resetting buffers...");
-    LEDScreenState state = {0};
-    full_index = 0;
+    emit log(QString("Resetting buffers (size = %1)...").arg(sizeof(LEDScreenState)));
+    state_index = 0;
     send_buffer.clear();
-    state = generator->getNextState(full_index++);
-    send_buffer.append(state);
-    request_write_position = send_buffer.begin();
-    request_confirm_position = send_buffer.begin();
+    LEDScreenState state = {0};
+    generator->fillEmptyState(state_index, &state);
+    while (send_buffer.size() < generator->getBufferSize()) {
+        send_buffer.append(state);
+    }
+    request_write_position = request_confirm_position = request_generate_position = send_buffer.size()-1;
 }
 
 void SerialFXWriter::fillBuffer()
 {
-    LEDScreenState state = {0};
-    while(send_buffer.size() < half_buf_size) {
-        emit log("Generating block "+QString::number(full_index)+"...");
-        state = generator->getNextState(full_index++);
-        send_buffer.append(state);
+    unsigned interval = 0;
+
+    if (request_confirm_position < request_generate_position) {
+        interval = request_generate_position - request_confirm_position;
+    } else if (request_confirm_position == request_generate_position) {
+        if (request_write_position != request_generate_position) {
+            interval = send_buffer.size();
+        } else {
+            interval = 0;
+        }
+    } else {
+        interval = request_confirm_position + send_buffer.size() - request_generate_position;
     }
+
+    emit log("Buffer interval: "+QString::number(interval));
+
+    if (interval<half_buf_size) {
+        for(interval=0; interval<half_buf_size; interval++) {
+            request_generate_position = getNextPosition(request_generate_position);
+            LEDScreenState state = {0};
+            generator->fillNextState(state_index++, &state);
+            send_buffer[request_generate_position] = state;
+            emit log("Generating block "+QString::number(state.state_index)+"...");
+        }
+    }
+    emit log("Buffer genpos: "+QString::number(request_generate_position));
 }
 
 void SerialFXWriter::responseCheck(QByteArray response)
@@ -138,12 +167,12 @@ void SerialFXWriter::responseCheck(QByteArray response)
     uint32_t last_confirmed_position;
     uint8_t data[4];
     for(int i=0; i<response.size()-6; i++) {
-        if (response.at(i) == 'S' && response.at(i+1) == 'C' && response.at(i+2) == 'E') {
+        if (response.at(i) == 'C' && response.at(i+1) == 'S' && response.at(i+2) == 'P') {
             data[0] = response.at(i+3);
             data[1] = response.at(i+4);
             data[2] = response.at(i+5);
             data[3] = response.at(i+6);
-            last_confirmed_position = *((quint32*)(void*)data);
+            last_confirmed_position = *((uint32_t*)(void*)data);
             confirm_set = true;
             i+=6;
         }
@@ -154,10 +183,23 @@ void SerialFXWriter::responseCheck(QByteArray response)
 void SerialFXWriter::setConfirmPosition(uint32_t confirm_position)
 {
     emit log("Confirmed position: "+QString::number(confirm_position));
-    request_confirm_position = send_buffer.begin();
-    while((request_confirm_position!=send_buffer.end()) && (request_confirm_position->block_index < confirm_position)) {
-        request_confirm_position++;
-        send_buffer.removeFirst();
+
+    unsigned i;
+    for(i=0; i<send_buffer.size() && send_buffer.at(i).state_index != confirm_position; i++) {
+        emit log("CPOS["+QString::number(i)+"]: "+QString::number(send_buffer.at(i).state_index) + " <> " + QString::number(confirm_position));
     }
-    request_write_position = request_confirm_position;
+    if (i<send_buffer.size()) {
+        request_confirm_position = i;
+        request_write_position = i;
+        emit log("Confirmed request_confirm_position="+QString::number(request_confirm_position) +", request_write_position="+QString::number(request_write_position));
+    } else {
+        emit log("Confirmed request_confirm_position not found");
+    }
+}
+
+unsigned SerialFXWriter::getNextPosition(unsigned cur_position)
+{
+    cur_position++;
+    if (cur_position>=send_buffer.size()) cur_position = 0;
+    return cur_position;
 }
