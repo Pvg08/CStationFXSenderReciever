@@ -3,7 +3,7 @@
 
 #define MATRIX_COUNT 5
 #define MATRIX_ROWS_COUNT 8
-#define MATRIX_STATE_BUFFER_SIZE 6
+#define MATRIX_STATE_BUFFER_SIZE 8
 #define BAUD_RATE 115200
 
 #define MAX_RECIEVE_INTERVAL 15000
@@ -20,6 +20,8 @@ struct LEDScreenState {
 } __PACKED;
 
 struct LEDScreenState state_buffer[MATRIX_STATE_BUFFER_SIZE] = {0};
+LEDScreenState state_old = {0};
+
 unsigned buffer_playposition;
 unsigned buffer_writeposition;
 bool first_reading;
@@ -62,7 +64,10 @@ void setState(LEDScreenState* state) {
   if (state->played) return;
   for(byte page=0; page<MATRIX_COUNT; page++) {
     for(byte row=0; row<MATRIX_ROWS_COUNT; row++) {
-      lc.setRow(page,row,state->blocks[page][row]);
+      if (state_old.blocks[page][row] != state->blocks[page][row]) {
+        lc.setRow(page, row, state->blocks[page][row]);
+        state_old.blocks[page][row] = state->blocks[page][row];
+      }
     }
   }
   state->played = true;
@@ -75,7 +80,7 @@ void sendPosConfirmation(uint32_t pos, bool is_play) {
   byte* last_pos = (byte*) (void*) &pos;
   Serial.write('C');
   Serial.write('S');
-  Serial.write(is_play ? 'P' : 'T');
+  Serial.write(is_play ? 'P' : 'W');
   Serial.write(last_pos[0]);
   Serial.write(last_pos[1]);
   Serial.write(last_pos[2]);
@@ -87,9 +92,9 @@ void loop() {
   byte j;
   bool new_state;
 
-  for(j=0; j<10; j++) {
+  /*for(j=0; j<10; j++) {
     digitalWrite(13, HIGH);delay(200);digitalWrite(13, LOW);delay(200);
-  }
+  }*/
 
   while (true) {
     new_state = false;
@@ -99,17 +104,16 @@ void loop() {
       for(byte i=0; i<sizeof(LEDScreenState); i++) {
         next_pos[i] = Serial.read();
       }
-      uint16_t ihash = 1;//state_buffer[buffer_writeposition].hash;
+      uint16_t ihash = state_buffer[buffer_writeposition].hash;
       state_buffer[buffer_writeposition].hash = 0;
-      uint16_t chash = 1;//crc.XModemCrc((uint8_t*) (void*) next_pos, 0, sizeof(LEDScreenState));
-      if (chash == ihash && (!first_reading || state_buffer[buffer_writeposition].block_index>last_readed_pos)) {
+      if ((!first_reading || state_buffer[buffer_writeposition].block_index==(last_readed_pos+1)) && ihash==crc.XModemCrc((uint8_t*) (void*) &(state_buffer[buffer_writeposition]), 0, sizeof(LEDScreenState))) {
         first_reading = true;
         last_readed_pos = state_buffer[buffer_writeposition].block_index;
         buffer_writeposition=nextBufferPosition(buffer_writeposition);
       } else {
-        delay(50);
+        delay(10);
         /*for(j=0; j<3; j++) {
-          digitalWrite(13, HIGH);delay(30);digitalWrite(13, LOW);delay(30);
+          digitalWrite(13, HIGH);delay(250);digitalWrite(13, LOW);delay(250);
         }*/
         while (Serial.available()) Serial.read();
       }
@@ -119,7 +123,7 @@ void loop() {
       }
     }
     if (new_state) {
-      //sendPosConfirmation(last_readed_pos, false);
+      sendPosConfirmation(last_readed_pos, false);
     } else if (first_reading) {
       if (buffer_playposition != buffer_writeposition) {
         if (!last_state_millis || (millis()-last_state_millis)>=last_state_delay) {

@@ -2,11 +2,12 @@
 #define DATAGENERATOR_H
 
 #include <QObject>
+#include <math.h>
 #include "Crc16.h"
 
 #define MATRIX_COUNT 5
 #define MATRIX_ROWS_COUNT 8
-#define MATRIX_STATE_BUFFER_SIZE 6
+#define MATRIX_STATE_BUFFER_SIZE 8
 
 #if defined(WIN32) || defined(__WATCOMC__) || defined(_WIN32) || defined(__WIN32__)
     #define __PACKED                         /* dummy */

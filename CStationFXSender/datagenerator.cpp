@@ -26,11 +26,17 @@ void DataGenerator::fillNextState(uint32_t full_index, LEDScreenState* state)
     full_index /= 8;
     unsigned page = full_index % 5;
 
-    state->blocks[page][row] = 1 << col;
-    state->timeout = 50;
+    unsigned i = round(fmax(0, sin((float)state->state_index/1000.0)*10));
+    for(; i>0; i--) {
+        state->blocks[rand() % 5][rand() % 8] |= (1 << (rand() % 8));
+    }
+
+    state->blocks[page][row] |= 1 << col;
+
+    state->timeout = 10;
     state->played = 0;
     state->hash = 0;
-    state->hash = crc.XModemCrc((uint8_t*) (void*) state, 0, sizeof(state));
+    state->hash = crc.XModemCrc((uint8_t*) (void*) state, 0, sizeof(LEDScreenState));
 }
 
 void DataGenerator::fillEmptyState(uint32_t full_index, LEDScreenState* state)
@@ -38,5 +44,5 @@ void DataGenerator::fillEmptyState(uint32_t full_index, LEDScreenState* state)
     state->state_index = full_index;
     state->played = 0;
     state->hash = 0;
-    state->hash = crc.XModemCrc((uint8_t*) (void*) &state, 0, sizeof(state));
+    state->hash = crc.XModemCrc((uint8_t*) (void*) state, 0, sizeof(LEDScreenState));
 }

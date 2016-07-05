@@ -35,13 +35,14 @@ private:
     bool quit;
     DataGenerator* generator;
     uint32_t state_index;
+    uint32_t confirmed_last_play_index, confirmed_last_write_index;
     unsigned half_buf_size;
 
     void resetBuffers();
     void fillBuffer();
     void responseCheck(QByteArray response);
 
-    void setConfirmPosition(uint32_t confirm_position);
+    void setConfirmPosition(uint32_t confirm_write_position);
     unsigned getNextPosition(unsigned cur_position);
 };
 
