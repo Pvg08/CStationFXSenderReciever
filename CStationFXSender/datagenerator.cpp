@@ -2,8 +2,8 @@
 
 DataGenerator::DataGenerator()
 {
-    state_size = sizeof(LEDScreenState);
-    state_count = MATRIX_STATE_BUFFER_SIZE;
+    state_size = sizeof(StateStruct);
+    state_count = 2;
 }
 
 uint16_t DataGenerator::getDataSize()
@@ -16,33 +16,19 @@ uint16_t DataGenerator::getBufferSize()
     return state_count;
 }
 
-void DataGenerator::fillNextState(uint32_t full_index, LEDScreenState* state)
+void DataGenerator::fillNextState(uint32_t full_index, QByteArray *buffer)
 {
-    state->state_index = full_index;
-
-    unsigned col = full_index % 8;
-    full_index /= 8;
-    unsigned row = full_index % 8;
-    full_index /= 8;
-    unsigned page = full_index % 5;
-
-    unsigned i = round(fmax(0, sin((float)state->state_index/1000.0)*10));
-    for(; i>0; i--) {
-        state->blocks[rand() % 5][rand() % 8] |= (1 << (rand() % 8));
-    }
-
-    state->blocks[page][row] |= 1 << col;
-
-    state->timeout = 10;
-    state->played = 0;
-    state->hash = 0;
-    state->hash = crc.XModemCrc((uint8_t*) (void*) state, 0, sizeof(LEDScreenState));
+    return fillEmptyState(full_index, buffer);
 }
 
-void DataGenerator::fillEmptyState(uint32_t full_index, LEDScreenState* state)
+void DataGenerator::fillEmptyState(uint32_t full_index, QByteArray *buffer)
 {
-    state->state_index = full_index;
-    state->played = 0;
-    state->hash = 0;
-    state->hash = crc.XModemCrc((uint8_t*) (void*) state, 0, sizeof(LEDScreenState));
+    StateStruct state = {0};
+    state.state_index = full_index;
+    buffer->replace(0, buffer->size(), (char*)(void*)&state, sizeof(state));
+}
+
+uint16_t DataGenerator::getHash(void *state)
+{
+    return crc.XModemCrc((uint8_t*) state, 0, state_size);
 }

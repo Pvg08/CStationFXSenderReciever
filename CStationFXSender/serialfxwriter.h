@@ -28,7 +28,7 @@ signals:
 
 private:
     QString portName;
-    QVector<LEDScreenState> send_buffer;
+    QVector<QByteArray*> send_buffer;
     unsigned request_write_position, request_confirm_position, request_generate_position;
     int waitTimeout;
     QMutex mutex;

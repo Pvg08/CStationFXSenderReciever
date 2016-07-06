@@ -1,13 +1,10 @@
 #ifndef DATAGENERATOR_H
 #define DATAGENERATOR_H
 
-#include <QObject>
 #include <math.h>
+#include <QObject>
+#include <QByteArray>
 #include "Crc16.h"
-
-#define MATRIX_COUNT 5
-#define MATRIX_ROWS_COUNT 8
-#define MATRIX_STATE_BUFFER_SIZE 8
 
 #if defined(WIN32) || defined(__WATCOMC__) || defined(_WIN32) || defined(__WIN32__)
     #define __PACKED                         /* dummy */
@@ -19,11 +16,9 @@
 #pragma pack(push, 1)
 #endif
 
-typedef uint8_t LEDMatrixState[MATRIX_ROWS_COUNT] __PACKED;
-struct LEDScreenState {
+struct StateStruct {
     uint32_t state_index __PACKED;
     uint32_t timeout __PACKED;
-    LEDMatrixState blocks[MATRIX_COUNT] __PACKED;
     uint16_t played __PACKED;
     uint16_t hash __PACKED;
 } __PACKED;
@@ -39,12 +34,14 @@ public:
     uint16_t getDataSize();
     uint16_t getBufferSize();
 
-    void fillNextState(uint32_t full_index, LEDScreenState* state);
-    void fillEmptyState(uint32_t full_index, LEDScreenState* state);
-private:
+    virtual void fillNextState(uint32_t full_index, QByteArray* buffer);
+    virtual void fillEmptyState(uint32_t full_index, QByteArray* buffer);
+protected:
     uint16_t state_size;
     uint16_t state_count;
     Crc16 crc;
+
+    uint16_t getHash(void* state);
 };
 
 #endif // DATAGENERATOR_H

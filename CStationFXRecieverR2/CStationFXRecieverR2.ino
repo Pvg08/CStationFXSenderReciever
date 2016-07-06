@@ -1,11 +1,13 @@
 #include <Crc16.h>
-#include "LedControl.h"
+#include <Adafruit_NeoPixel.h>
 
-#define MATRIX_COUNT 5
-#define MATRIX_ROWS_COUNT 8
+#define LEDRING_PIN 6
+
+#define LEDRING_PIXELS 24
+#define LEDRING_COLORS LEDRING_PIXELS*3
 #define STATE_BUFFER_SIZE 8
-
 #define BAUD_RATE 115200
+
 #define MAX_RECIEVE_INTERVAL 15000
 
 #define __PACKED __attribute__((packed))
@@ -17,13 +19,17 @@ struct StateStruct {
     uint16_t hash __PACKED;
 } __PACKED;
 
-typedef uint8_t LEDMatrixState[MATRIX_ROWS_COUNT] __PACKED;
-struct LEDScreenState : StateStruct {
-    LEDMatrixState blocks[MATRIX_COUNT] __PACKED;
+struct RGBPixel {
+  uint8_t r __PACKED;
+  uint8_t g __PACKED;
+  uint8_t b __PACKED;
+} __PACKED;
+struct LEDRingState : StateStruct {
+    RGBPixel state[LEDRING_PIXELS] __PACKED;
 } __PACKED;
 
-struct LEDScreenState state_buffer[STATE_BUFFER_SIZE] = {};
-LEDScreenState state_old = {};
+struct LEDRingState state_buffer[STATE_BUFFER_SIZE] = {};
+LEDRingState state_old = {};
 
 unsigned buffer_playposition;
 unsigned buffer_writeposition;
@@ -35,16 +41,12 @@ uint32_t last_state_millis;
 uint32_t last_state_delay;
 
 Crc16 crc;
-LedControl lc=LedControl(12, 11, 10, MATRIX_COUNT);
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(LEDRING_PIXELS, LEDRING_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
   Serial.begin(BAUD_RATE);
   pinMode(13, OUTPUT);
-  for (byte page=0; page<MATRIX_COUNT; page++) {
-    lc.shutdown(page,false);
-    lc.setIntensity(page,1);
-    lc.clearDisplay(page);
-  }
+  pixels.begin();
   state_buffer[0].state_index = 0;
   last_played_pos = 0;
   last_readed_pos = 0;
@@ -63,16 +65,17 @@ unsigned nextBufferPosition(unsigned cpos)
   return cpos;
 }
 
-void setState(LEDScreenState* state) {
+void setState(LEDRingState* state) {
   if (state->played) return;
-  for(byte page=0; page<MATRIX_COUNT; page++) {
-    for(byte row=0; row<MATRIX_ROWS_COUNT; row++) {
-      if (state_old.blocks[page][row] != state->blocks[page][row]) {
-        lc.setRow(page, row, state->blocks[page][row]);
-        state_old.blocks[page][row] = state->blocks[page][row];
-      }
+  bool state_changed = false;
+  for(byte i=0; i<LEDRING_PIXELS; i++) {
+    if (state_old.state[i].r != state->state[i].r || state_old.state[i].g != state->state[i].g || state_old.state[i].b != state->state[i].b) {
+      pixels.setPixelColor(i, pixels.Color(state->state[i].r,state->state[i].g,state->state[i].b));
+      state_old.state[i] = state->state[i];
+      state_changed = true;
     }
   }
+  if (state_changed) pixels.show();
   state->played = true;
   last_played_pos = state->state_index;
   last_state_delay = state->timeout;
@@ -101,15 +104,15 @@ void loop() {
 
   while (true) {
     new_state = false;
-    while (Serial.available() >= sizeof(LEDScreenState)) {
+    while (Serial.available() >= sizeof(LEDRingState)) {
       last_recieve_millis = millis();
       char* next_pos = (char*) (void*) &(state_buffer[buffer_writeposition]);
-      for(byte i=0; i<sizeof(LEDScreenState); i++) {
+      for(byte i=0; i<sizeof(LEDRingState); i++) {
         next_pos[i] = Serial.read();
       }
       uint16_t ihash = state_buffer[buffer_writeposition].hash;
       state_buffer[buffer_writeposition].hash = 0;
-      if ((!first_reading || state_buffer[buffer_writeposition].state_index==(last_readed_pos+1)) && ihash==crc.XModemCrc((uint8_t*) (void*) &(state_buffer[buffer_writeposition]), 0, sizeof(LEDScreenState))) {
+      if ((!first_reading || state_buffer[buffer_writeposition].state_index==(last_readed_pos+1)) && ihash==crc.XModemCrc((uint8_t*) (void*) &(state_buffer[buffer_writeposition]), 0, sizeof(LEDRingState))) {
         first_reading = true;
         last_readed_pos = state_buffer[buffer_writeposition].state_index;
         buffer_writeposition=nextBufferPosition(buffer_writeposition);
@@ -121,7 +124,7 @@ void loop() {
         while (Serial.available()) Serial.read();
       }
       new_state = true;
-      if (Serial.available() && (Serial.available() < sizeof(LEDScreenState))) {
+      if (Serial.available() && (Serial.available() < sizeof(LEDRingState))) {
         delay(20);
       }
     }

@@ -16,11 +16,13 @@ SOURCES += main.cpp\
     mainwindow.cpp \
     serialfxwriter.cpp \
     datagenerator.cpp \
-    crc16.cpp
+    crc16.cpp \
+    datageneratorledscreen.cpp
 
 HEADERS  += mainwindow.h \
     serialfxwriter.h \
     datagenerator.h \
-    crc16.h
+    crc16.h \
+    datageneratorledscreen.h
 
 FORMS    += mainwindow.ui

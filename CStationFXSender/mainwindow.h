@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include "serialfxwriter.h"
 
+#include "datageneratorledscreen.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -26,6 +28,8 @@ private slots:
     void processLog(const QString &s);
 
     void on_toolButton_refresh_clicked();
+
+    void on_checkBox_detailed_clicked(bool checked);
 
 private:
     Ui::MainWindow *ui;

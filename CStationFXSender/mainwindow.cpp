@@ -11,7 +11,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     on_toolButton_refresh_clicked();
 
-    generator = new DataGenerator();
+    generator = new DataGeneratorLEDScreen();
     transactionCount = 0;
     connect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     connect(&thread, SIGNAL(error(QString)), this, SLOT(processError(QString)));
@@ -73,5 +73,14 @@ void MainWindow::on_toolButton_refresh_clicked()
     ui->comboBox_port->clear();
     foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
         ui->comboBox_port->addItem(info.portName());
+    }
+}
+
+void MainWindow::on_checkBox_detailed_clicked(bool checked)
+{
+    if (checked) {
+        connect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
+    } else {
+        disconnect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
     }
 }
