@@ -11,7 +11,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     on_toolButton_refresh_clicked();
 
-    generator = new DataGeneratorLEDScreen();
+    //generator = new DataGeneratorLEDScreen();
+    generator = new DataGeneratorLEDRing();
     transactionCount = 0;
     connect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     connect(&thread, SIGNAL(error(QString)), this, SLOT(processError(QString)));

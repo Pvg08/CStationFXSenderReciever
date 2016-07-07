@@ -5,6 +5,7 @@
 #include "serialfxwriter.h"
 
 #include "datageneratorledscreen.h"
+#include "datageneratorledring.h"
 
 namespace Ui {
 class MainWindow;

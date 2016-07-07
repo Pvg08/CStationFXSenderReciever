@@ -4,11 +4,11 @@
 #define LEDRING_PIN 6
 
 #define LEDRING_PIXELS 24
-#define LEDRING_COLORS LEDRING_PIXELS*3
-#define STATE_BUFFER_SIZE 8
+#define STATE_SET_DELAY_MS 6
+#define STATE_BUFFER_SIZE 6
 #define BAUD_RATE 115200
 
-#define MAX_RECIEVE_INTERVAL 15000
+#define MAX_RECIEVE_INTERVAL 5000
 
 #define __PACKED __attribute__((packed))
 
@@ -56,6 +56,8 @@ void setup() {
   last_state_millis = 0;
   last_state_delay = 0;
   first_reading = false;
+  pixels.clear();
+  pixels.show();
 }
 
 unsigned nextBufferPosition(unsigned cpos)
@@ -75,14 +77,17 @@ void setState(LEDRingState* state) {
       state_changed = true;
     }
   }
-  if (state_changed) pixels.show();
+  if (state_changed) {
+    pixels.show();
+    delay(1);
+  }
   state->played = true;
   last_played_pos = state->state_index;
   last_state_delay = state->timeout;
   last_state_millis = millis();
 }
 
-void sendPosConfirmation(uint32_t pos, bool is_play) {
+void sendPosConfirmation(uint32_t pos, bool is_play, bool do_flush = true) {
   byte* last_pos = (byte*) (void*) &pos;
   Serial.write('C');
   Serial.write('S');
@@ -91,12 +96,28 @@ void sendPosConfirmation(uint32_t pos, bool is_play) {
   Serial.write(last_pos[1]);
   Serial.write(last_pos[2]);
   Serial.write(last_pos[3]);
-  Serial.flush();
+  if (do_flush) Serial.flush();
+}
+
+void ClearSerial() {
+  while (Serial.available()) {
+    Serial.read();
+    delay(2);
+  }
+}
+
+void WaitORClear() {
+  if (Serial.available()>=sizeof(LEDRingState)) return;
+  unsigned avail = 0;
+  while (avail < Serial.available()) {
+    avail = Serial.available();
+    delay(5);
+  }
 }
 
 void loop() { 
   byte j;
-  bool new_state;
+  bool new_state, new_play_state;
 
   /*for(j=0; j<10; j++) {
     digitalWrite(13, HIGH);delay(200);digitalWrite(13, LOW);delay(200);
@@ -104,6 +125,8 @@ void loop() {
 
   while (true) {
     new_state = false;
+    new_play_state = false;
+    //WaitORClear();
     while (Serial.available() >= sizeof(LEDRingState)) {
       last_recieve_millis = millis();
       char* next_pos = (char*) (void*) &(state_buffer[buffer_writeposition]);
@@ -116,31 +139,30 @@ void loop() {
         first_reading = true;
         last_readed_pos = state_buffer[buffer_writeposition].state_index;
         buffer_writeposition=nextBufferPosition(buffer_writeposition);
+        WaitORClear();
       } else {
-        delay(10);
-        /*for(j=0; j<3; j++) {
-          digitalWrite(13, HIGH);delay(250);digitalWrite(13, LOW);delay(250);
-        }*/
-        while (Serial.available()) Serial.read();
+        for(j=0; j<3; j++) {
+          digitalWrite(13, HIGH);delay(50);digitalWrite(13, LOW);delay(50);
+        }
+        ClearSerial();
       }
       new_state = true;
-      if (Serial.available() && (Serial.available() < sizeof(LEDRingState))) {
-        delay(20);
-      }
     }
-    if (new_state) {
-      sendPosConfirmation(last_readed_pos, false);
-    } else if (first_reading) {
+    if (first_reading) {
       if (buffer_playposition != buffer_writeposition) {
-        if (!last_state_millis || (millis()-last_state_millis)>=last_state_delay) {
+        if (!last_state_millis || (millis()+STATE_SET_DELAY_MS-last_state_millis)>=last_state_delay) {
           setState(&(state_buffer[buffer_playposition]));
-          sendPosConfirmation(last_played_pos, true);
           buffer_playposition=nextBufferPosition(buffer_playposition);
+          new_play_state = true;
         }
       } else if ((millis()-last_recieve_millis) >= MAX_RECIEVE_INTERVAL) {
-        sendPosConfirmation(last_played_pos, true);
+        new_play_state = true;
         last_recieve_millis = millis();
       }
+    }
+    if (new_state || new_play_state) {
+      sendPosConfirmation(last_readed_pos, false, false);
+      sendPosConfirmation(last_played_pos, true, true);
     }
 
     delay(1);
