@@ -1,8 +1,5 @@
 #include "serialfxwriter.h"
 
-#include <QtSerialPort/QSerialPort>
-#include <QTime>
-
 QT_USE_NAMESPACE
 
 SerialFXWriter::SerialFXWriter(QObject *parent)
@@ -32,9 +29,8 @@ void SerialFXWriter::listen(const QString &portName, int waitTimeout, DataGenera
     generator = c_generator;
     confirmed_last_play_index = confirmed_last_write_index = 0;
     half_buf_size = generator->getBufferSize() / 2;
-    resetBuffers();
-    if (!isRunning())
-        start();
+    reset_states = true;
+    if (!isRunning()) start();
 }
 
 void SerialFXWriter::run()
@@ -66,6 +62,16 @@ void SerialFXWriter::run()
                            .arg(portName).arg(serial.error()));
                 return;
             }
+        }
+
+        if (reset_states) {
+            resetBuffers();
+            serial.write(*send_buffer.at(0));
+            if (!serial.waitForBytesWritten(waitTimeout)) {
+                emit timeout(tr("Wait write request timeout %1")
+                             .arg(QTime::currentTime().toString()));
+            }
+            reset_states = false;
         }
 
         fillBuffer();
@@ -133,6 +139,9 @@ void SerialFXWriter::resetBuffers()
         generator->fillEmptyState(state_index, bytearray);
         send_buffer.append(bytearray);
     }
+    ((StateStruct*)send_buffer[0]->data())->hash = 0;
+    ((StateStruct*)send_buffer[0]->data())->played = 'R';
+    ((StateStruct*)send_buffer[0]->data())->timeout = 0;
     request_write_position = request_confirm_position = request_generate_position = send_buffer.size()-1;
 }
 
@@ -176,7 +185,10 @@ void SerialFXWriter::responseCheck(QByteArray response)
             data[1] = response.at(i+4);
             data[2] = response.at(i+5);
             data[3] = response.at(i+6);
-            confirmed_last_play_index = *((uint32_t*)(void*)data);
+            if (confirmed_last_play_index != *((uint32_t*)(void*)data)) {
+                emit frame_play_confirmed();
+                confirmed_last_play_index = *((uint32_t*)(void*)data);
+            }
             confirm_set = true;
             i+=6;
             emit log("SET confirmed_last_play_index: "+QString::number(confirmed_last_play_index));

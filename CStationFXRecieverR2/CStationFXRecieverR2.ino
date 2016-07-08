@@ -4,7 +4,6 @@
 #define LEDRING_PIN 6
 
 #define LEDRING_PIXELS 24
-#define STATE_SET_DELAY_MS 6
 #define STATE_BUFFER_SIZE 6
 #define BAUD_RATE 115200
 
@@ -29,7 +28,7 @@ struct LEDRingState : StateStruct {
 } __PACKED;
 
 struct LEDRingState state_buffer[STATE_BUFFER_SIZE] = {};
-LEDRingState state_old = {};
+LEDRingState state_old;
 
 unsigned buffer_playposition;
 unsigned buffer_writeposition;
@@ -43,10 +42,7 @@ uint32_t last_state_delay;
 Crc16 crc;
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(LEDRING_PIXELS, LEDRING_PIN, NEO_GRB + NEO_KHZ800);
 
-void setup() {
-  Serial.begin(BAUD_RATE);
-  pinMode(13, OUTPUT);
-  pixels.begin();
+void resetState() {
   state_buffer[0].state_index = 0;
   last_played_pos = 0;
   last_readed_pos = 0;
@@ -58,6 +54,18 @@ void setup() {
   first_reading = false;
   pixels.clear();
   pixels.show();
+  for(byte i=0; i<LEDRING_PIXELS; i++) {
+    state_old.state[i].r = 0;
+    state_old.state[i].g = 0;
+    state_old.state[i].b = 0;
+  }
+}
+
+void setup() {
+  Serial.begin(BAUD_RATE);
+  pinMode(13, OUTPUT);
+  pixels.begin();
+  resetState();
 }
 
 unsigned nextBufferPosition(unsigned cpos)
@@ -79,7 +87,6 @@ void setState(LEDRingState* state) {
   }
   if (state_changed) {
     pixels.show();
-    delay(1);
   }
   state->played = true;
   last_played_pos = state->state_index;
@@ -133,6 +140,11 @@ void loop() {
       for(byte i=0; i<sizeof(LEDRingState); i++) {
         next_pos[i] = Serial.read();
       }
+      if (state_buffer[buffer_writeposition].hash == 0 && state_buffer[buffer_writeposition].state_index == 0 && state_buffer[buffer_writeposition].timeout == 0 && state_buffer[buffer_writeposition].played == 'R') {
+        resetState();
+        delay(100);
+        return;
+      }
       uint16_t ihash = state_buffer[buffer_writeposition].hash;
       state_buffer[buffer_writeposition].hash = 0;
       if ((!first_reading || state_buffer[buffer_writeposition].state_index==(last_readed_pos+1)) && ihash==crc.XModemCrc((uint8_t*) (void*) &(state_buffer[buffer_writeposition]), 0, sizeof(LEDRingState))) {
@@ -141,16 +153,16 @@ void loop() {
         buffer_writeposition=nextBufferPosition(buffer_writeposition);
         WaitORClear();
       } else {
-        for(j=0; j<3; j++) {
+        /*for(j=0; j<3; j++) {
           digitalWrite(13, HIGH);delay(50);digitalWrite(13, LOW);delay(50);
-        }
+        }*/
         ClearSerial();
       }
       new_state = true;
     }
     if (first_reading) {
       if (buffer_playposition != buffer_writeposition) {
-        if (!last_state_millis || (millis()+STATE_SET_DELAY_MS-last_state_millis)>=last_state_delay) {
+        if (!last_state_millis || (millis()-last_state_millis)>=last_state_delay) {
           setState(&(state_buffer[buffer_playposition]));
           buffer_playposition=nextBufferPosition(buffer_playposition);
           new_play_state = true;
@@ -167,5 +179,4 @@ void loop() {
 
     delay(1);
   }
-
 }

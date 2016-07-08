@@ -5,6 +5,8 @@
 #include <QMutex>
 #include <QWaitCondition>
 #include <QVector>
+#include <QDateTime>
+#include <QtSerialPort/QSerialPort>
 
 #include "datagenerator.h"
 
@@ -25,6 +27,7 @@ signals:
     void error(const QString &s);
     void timeout(const QString &s);
     void log(const QString &s);
+    void frame_play_confirmed();
 
 private:
     QString portName;
@@ -37,6 +40,7 @@ private:
     uint32_t state_index;
     uint32_t confirmed_last_play_index, confirmed_last_write_index;
     unsigned half_buf_size;
+    bool reset_states;
 
     void resetBuffers();
     void fillBuffer();

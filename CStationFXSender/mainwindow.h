@@ -27,14 +27,17 @@ private slots:
     void processError(const QString &s);
     void processTimeout(const QString &s);
     void processLog(const QString &s);
+    void frame_played();
 
     void on_toolButton_refresh_clicked();
-
     void on_checkBox_detailed_clicked(bool checked);
+    void on_spinBox_timeout_valueChanged(int arg1);
 
 private:
     Ui::MainWindow *ui;
     int transactionCount;
+    uint fps_counter;
+    qint64 millis;
 
     SerialFXWriter thread;
     DataGenerator* generator;

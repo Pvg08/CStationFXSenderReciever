@@ -13,11 +13,17 @@ MainWindow::MainWindow(QWidget *parent) :
 
     //generator = new DataGeneratorLEDScreen();
     generator = new DataGeneratorLEDRing();
+
+    generator->setBaseTimeout(ui->spinBox_timeout->value());
     transactionCount = 0;
     connect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     connect(&thread, SIGNAL(error(QString)), this, SLOT(processError(QString)));
     connect(&thread, SIGNAL(timeout(QString)), this, SLOT(processTimeout(QString)));
     connect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
+    connect(&thread, SIGNAL(frame_play_confirmed()), this, SLOT(frame_played()));
+
+    fps_counter = 0;
+    millis = QDateTime::currentDateTime().toMSecsSinceEpoch();
 }
 
 MainWindow::~MainWindow()
@@ -58,6 +64,16 @@ void MainWindow::processLog(const QString &s)
     ui->textEdit_log->append(s);
 }
 
+void MainWindow::frame_played()
+{
+    fps_counter++;
+    if (abs(QDateTime::currentDateTime().toMSecsSinceEpoch()-millis)>1000) {
+        ui->label_freq->setText(QString::number(round(1000.0*fps_counter/(QDateTime::currentDateTime().toMSecsSinceEpoch()-millis))) + " fps");
+        millis = QDateTime::currentDateTime().toMSecsSinceEpoch();
+        fps_counter = 0;
+    }
+}
+
 void MainWindow::on_pushButton_start_clicked()
 {
     if (thread.isRunning()) {
@@ -84,4 +100,9 @@ void MainWindow::on_checkBox_detailed_clicked(bool checked)
     } else {
         disconnect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
     }
+}
+
+void MainWindow::on_spinBox_timeout_valueChanged(int arg1)
+{
+    generator->setBaseTimeout(arg1);
 }

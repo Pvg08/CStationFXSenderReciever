@@ -19,7 +19,7 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>571</width>
+      <width>171</width>
       <height>16</height>
      </rect>
     </property>
@@ -58,7 +58,7 @@
      <rect>
       <x>10</x>
       <y>30</y>
-      <width>531</width>
+      <width>171</width>
       <height>22</height>
      </rect>
     </property>
@@ -66,7 +66,7 @@
    <widget class="QToolButton" name="toolButton_refresh">
     <property name="geometry">
      <rect>
-      <x>550</x>
+      <x>190</x>
       <y>30</y>
       <width>31</width>
       <height>21</height>
@@ -79,8 +79,8 @@
    <widget class="QCheckBox" name="checkBox_detailed">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>380</y>
+      <x>240</x>
+      <y>30</y>
       <width>91</width>
       <height>17</height>
      </rect>
@@ -90,6 +90,51 @@
     </property>
     <property name="checked">
      <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_timeout">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>30</y>
+      <width>91</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>9000000</number>
+    </property>
+    <property name="value">
+     <number>41</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>10</y>
+      <width>91</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Timeout:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_freq">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>380</y>
+      <width>81</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>0 fps</string>
     </property>
    </widget>
   </widget>

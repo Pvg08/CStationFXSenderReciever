@@ -36,9 +36,13 @@ public:
 
     virtual void fillNextState(uint32_t full_index, QByteArray* buffer);
     virtual void fillEmptyState(uint32_t full_index, QByteArray* buffer);
+    uint32_t getBaseTimeout() const;
+    void setBaseTimeout(const uint32_t &value);
+
 protected:
     uint16_t state_size;
     uint16_t state_count;
+    uint32_t base_timeout;
     Crc16 crc;
 
     uint16_t getHash(void* state);

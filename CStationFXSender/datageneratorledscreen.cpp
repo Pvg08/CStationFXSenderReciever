@@ -38,7 +38,7 @@ LEDScreenState DataGeneratorLEDScreen::getNextState(uint32_t full_index)
 
     state.blocks[page][row] |= 1 << col;
 
-    state.timeout = 10;
+    state.timeout = base_timeout;
     state.played = 0;
     state.hash = 0;
     state.hash = getHash((void*) &state);
