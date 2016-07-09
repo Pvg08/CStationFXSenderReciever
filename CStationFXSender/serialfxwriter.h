@@ -28,6 +28,7 @@ signals:
     void timeout(const QString &s);
     void log(const QString &s);
     void frame_play_confirmed();
+    void frame_error();
 
 private:
     QString portName;

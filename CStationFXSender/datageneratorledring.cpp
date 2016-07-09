@@ -30,7 +30,7 @@ LEDRingState DataGeneratorLEDRing::getNextState(uint32_t full_index)
         state.state[i] = Color(rand() % 50, rand() % 50, rand() % 50);
     }
 
-    state.state[full_index % LEDRING_PIXELS] = Color(0, 0, 0);
+    state.state[(full_index/3) % LEDRING_PIXELS] = Color(0, 0, 0);
     //state.state[(full_index+12) % LEDRING_PIXELS] = Color(0, 0, 0);
     //state.state[(full_index+18) % LEDRING_PIXELS] = Color(0, 0, 0);
     //state.state[(full_index+6) % LEDRING_PIXELS] = Color(0, 0, 0);

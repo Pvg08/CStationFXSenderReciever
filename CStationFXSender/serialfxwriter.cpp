@@ -30,7 +30,8 @@ void SerialFXWriter::listen(const QString &portName, int waitTimeout, DataGenera
     confirmed_last_play_index = confirmed_last_write_index = 0;
     half_buf_size = generator->getBufferSize() / 2;
     reset_states = true;
-    if (!isRunning()) start();
+    quit = false;
+    if (!isRunning()) start(QThread::HighestPriority);
 }
 
 void SerialFXWriter::run()
@@ -50,6 +51,8 @@ void SerialFXWriter::run()
     QSerialPort serial;
 
     serial.setBaudRate(115200);
+
+    emit log("Thread started...");
 
     while (!quit) {
 
@@ -116,6 +119,7 @@ void SerialFXWriter::run()
         currentWaitTimeout = waitTimeout;
         mutex.unlock();
     }
+    emit log("Thread closed...");
 }
 
 void SerialFXWriter::do_stop()
@@ -216,11 +220,13 @@ void SerialFXWriter::setConfirmPosition(uint32_t confirm_write_position)
         emit log("CPOS["+QString::number(i)+"]: "+QString::number(((StateStruct*)(void*)send_buffer.at(i)->data())->state_index) + " <> " + QString::number(confirm_write_position));
     }
     if (i<send_buffer.size()) {
+        if (request_write_position != i) emit frame_error();
         request_confirm_position = i;
         request_write_position = i;
         emit log("Confirmed request_confirm_position="+QString::number(request_confirm_position) +", request_write_position="+QString::number(request_write_position));
     } else {
         emit log("Confirmed request_confirm_position not found");
+        emit frame_error();
     }
 }
 

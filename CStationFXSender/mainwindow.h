@@ -28,6 +28,7 @@ private slots:
     void processTimeout(const QString &s);
     void processLog(const QString &s);
     void frame_played();
+    void frame_error();
 
     void on_toolButton_refresh_clicked();
     void on_checkBox_detailed_clicked(bool checked);
@@ -37,6 +38,7 @@ private:
     Ui::MainWindow *ui;
     int transactionCount;
     uint fps_counter;
+    uint fps_errors;
     qint64 millis;
 
     SerialFXWriter thread;

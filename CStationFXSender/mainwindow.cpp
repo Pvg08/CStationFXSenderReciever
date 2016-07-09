@@ -21,9 +21,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&thread, SIGNAL(timeout(QString)), this, SLOT(processTimeout(QString)));
     connect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
     connect(&thread, SIGNAL(frame_play_confirmed()), this, SLOT(frame_played()));
-
-    fps_counter = 0;
-    millis = QDateTime::currentDateTime().toMSecsSinceEpoch();
+    connect(&thread, SIGNAL(frame_error()), this, SLOT(frame_error()));
 }
 
 MainWindow::~MainWindow()
@@ -35,6 +33,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::transaction()
 {
+    fps_counter = 0;
+    fps_errors = 0;
+    millis = QDateTime::currentDateTime().toMSecsSinceEpoch();
     ui->textEdit_log->append(tr("Status: Running, connected to port %1.").arg(ui->comboBox_port->currentText()));
     ui->statusBar->showMessage(tr("Status: Running, connected to port %1.").arg(ui->comboBox_port->currentText()), 10000);
     thread.listen(ui->comboBox_port->currentText(), 30000, generator);
@@ -72,6 +73,12 @@ void MainWindow::frame_played()
         millis = QDateTime::currentDateTime().toMSecsSinceEpoch();
         fps_counter = 0;
     }
+}
+
+void MainWindow::frame_error()
+{
+    fps_errors++;
+    ui->label_errors->setText(QString::number(fps_errors) + " errors");
 }
 
 void MainWindow::on_pushButton_start_clicked()

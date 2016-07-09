@@ -31,7 +31,7 @@ LEDScreenState DataGeneratorLEDScreen::getNextState(uint32_t full_index)
     full_index /= 8;
     unsigned page = full_index % 5;
 
-    unsigned i = round(fmax(0, sin((float)state.state_index/10000.0)*10));
+    unsigned i = round(fmax(0, sin((float)state.state_index/10000.0)*320));
     for(; i>0; i--) {
         state.blocks[rand() % 5][rand() % 8] |= (1 << (rand() % 8));
     }

@@ -1,12 +1,17 @@
+/* 
+ *  This is program for control of
+ *  NeoPixel RGB 24-LED Ring 
+ *  via USB
+*/
+
 #include <Crc16.h>
 #include <Adafruit_NeoPixel.h>
 
 #define LEDRING_PIN 6
-
 #define LEDRING_PIXELS 24
+
 #define STATE_BUFFER_SIZE 6
 #define BAUD_RATE 115200
-
 #define MAX_RECIEVE_INTERVAL 5000
 
 #define __PACKED __attribute__((packed))
@@ -26,6 +31,8 @@ struct RGBPixel {
 struct LEDRingState : StateStruct {
     RGBPixel state[LEDRING_PIXELS] __PACKED;
 } __PACKED;
+
+#define STATE_SIZE sizeof(LEDRingState)
 
 struct LEDRingState state_buffer[STATE_BUFFER_SIZE] = {};
 LEDRingState state_old;
@@ -114,7 +121,7 @@ void ClearSerial() {
 }
 
 void WaitORClear() {
-  if (Serial.available()>=sizeof(LEDRingState)) return;
+  if (Serial.available()>=STATE_SIZE) return;
   unsigned avail = 0;
   while (avail < Serial.available()) {
     avail = Serial.available();
@@ -123,21 +130,15 @@ void WaitORClear() {
 }
 
 void loop() { 
-  byte j;
   bool new_state, new_play_state;
-
-  /*for(j=0; j<10; j++) {
-    digitalWrite(13, HIGH);delay(200);digitalWrite(13, LOW);delay(200);
-  }*/
 
   while (true) {
     new_state = false;
     new_play_state = false;
-    //WaitORClear();
-    while (Serial.available() >= sizeof(LEDRingState)) {
+    while (Serial.available() >= STATE_SIZE) {
       last_recieve_millis = millis();
       char* next_pos = (char*) (void*) &(state_buffer[buffer_writeposition]);
-      for(byte i=0; i<sizeof(LEDRingState); i++) {
+      for(byte i=0; i<STATE_SIZE; i++) {
         next_pos[i] = Serial.read();
       }
       if (state_buffer[buffer_writeposition].hash == 0 && state_buffer[buffer_writeposition].state_index == 0 && state_buffer[buffer_writeposition].timeout == 0 && state_buffer[buffer_writeposition].played == 'R') {
@@ -147,15 +148,12 @@ void loop() {
       }
       uint16_t ihash = state_buffer[buffer_writeposition].hash;
       state_buffer[buffer_writeposition].hash = 0;
-      if ((!first_reading || state_buffer[buffer_writeposition].state_index==(last_readed_pos+1)) && ihash==crc.XModemCrc((uint8_t*) (void*) &(state_buffer[buffer_writeposition]), 0, sizeof(LEDRingState))) {
+      if ((!first_reading || state_buffer[buffer_writeposition].state_index==(last_readed_pos+1)) && ihash==crc.XModemCrc((uint8_t*) (void*) &(state_buffer[buffer_writeposition]), 0, STATE_SIZE)) {
         first_reading = true;
         last_readed_pos = state_buffer[buffer_writeposition].state_index;
         buffer_writeposition=nextBufferPosition(buffer_writeposition);
         WaitORClear();
       } else {
-        /*for(j=0; j<3; j++) {
-          digitalWrite(13, HIGH);delay(50);digitalWrite(13, LOW);delay(50);
-        }*/
         ClearSerial();
       }
       new_state = true;

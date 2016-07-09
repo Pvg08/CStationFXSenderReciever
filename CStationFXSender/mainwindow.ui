@@ -137,6 +137,19 @@
      <string>0 fps</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label_errors">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>380</y>
+      <width>111</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>0 errors</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
