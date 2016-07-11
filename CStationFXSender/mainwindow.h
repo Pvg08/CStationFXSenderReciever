@@ -6,6 +6,7 @@
 
 #include "datageneratorledscreen.h"
 #include "datageneratorledring.h"
+#include "datageneratorledringrgb.h"
 
 namespace Ui {
 class MainWindow;

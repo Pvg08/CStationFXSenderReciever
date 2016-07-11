@@ -5,7 +5,7 @@
 
 #define MATRIX_COUNT 5
 #define MATRIX_ROWS_COUNT 8
-#define MATRIX_STATE_BUFFER_SIZE 8
+#define MATRIX_STATE_BUFFER_SIZE 6
 
 #if defined(WIN32) || defined(_WIN64) || defined(__WATCOMC__) || defined(_WIN32) || defined(__WIN32__)
 #pragma pack(push, 1)

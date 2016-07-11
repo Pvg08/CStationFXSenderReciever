@@ -1,37 +1,49 @@
 /* 
  *  This is program for control of
- *  5 sets of 8x8 LED matrices
+ *  NeoPixel RGB 24-LED Ring + additional RGB LED
  *  via USB
 */
 
 #include <Crc16.h>
-#include "LedControl.h"
+#include <Adafruit_NeoPixel.h>
 
-#define MATRIX_COUNT 5
-#define MATRIX_ROWS_COUNT 8
+#define LED_PIN_R 2
+#define LED_PIN_G 4
+#define LED_PIN_B 3
+#define LEDRING_PIN 6
+#define LEDRING_PIXELS 24
 
-#define STATE_BUFFER_SIZE 8
+#define STATE_BUFFER_SIZE 4
 #define BAUD_RATE 115200
 #define MAX_RECIEVE_INTERVAL 5000
+
+#define CMD_PLAY 0
+#define CMD_NONE 1
+#define CMD_RESET 'R'
 
 #define __PACKED __attribute__((packed))
 
 struct StateStruct {
     uint32_t state_index __PACKED;
     uint32_t timeout __PACKED;
-    uint16_t played __PACKED;
+    uint16_t command __PACKED;
     uint16_t hash __PACKED;
 } __PACKED;
 
-typedef uint8_t LEDMatrixState[MATRIX_ROWS_COUNT] __PACKED;
-struct LEDScreenState : StateStruct {
-    LEDMatrixState blocks[MATRIX_COUNT] __PACKED;
+struct RGBPixel {
+  uint8_t r __PACKED;
+  uint8_t g __PACKED;
+  uint8_t b __PACKED;
+} __PACKED;
+struct LEDRingState : StateStruct {
+    RGBPixel ring_state[LEDRING_PIXELS] __PACKED;
+    RGBPixel led_state __PACKED;
 } __PACKED;
 
-#define STATE_SIZE sizeof(LEDScreenState)
+#define STATE_SIZE sizeof(LEDRingState)
 
-struct LEDScreenState state_buffer[STATE_BUFFER_SIZE] = {};
-LEDScreenState state_old;
+struct LEDRingState state_buffer[STATE_BUFFER_SIZE] = {};
+LEDRingState state_old;
 
 unsigned buffer_playposition;
 unsigned buffer_writeposition;
@@ -43,7 +55,7 @@ uint32_t last_state_millis;
 uint32_t last_state_delay;
 
 Crc16 crc;
-LedControl lc=LedControl(12, 11, 10, MATRIX_COUNT);
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(LEDRING_PIXELS, LEDRING_PIN, NEO_GRB + NEO_KHZ800);
 
 void resetState() {
   state_buffer[0].state_index = 0;
@@ -55,16 +67,28 @@ void resetState() {
   last_state_millis = 0;
   last_state_delay = 0;
   first_reading = false;
-  for (byte page=0; page<MATRIX_COUNT; page++) {
-    lc.shutdown(page,false);
-    lc.setIntensity(page,1);
-    lc.clearDisplay(page);
+  pixels.clear();
+  pixels.show();
+  for(byte i=0; i<LEDRING_PIXELS; i++) {
+    state_old.ring_state[i].r = 0;
+    state_old.ring_state[i].g = 0;
+    state_old.ring_state[i].b = 0;
   }
+  state_old.led_state.r = 0;
+  state_old.led_state.g = 0;
+  state_old.led_state.b = 0;
 }
 
 void setup() {
   Serial.begin(BAUD_RATE);
   pinMode(13, OUTPUT);
+  pinMode(LED_PIN_R, OUTPUT);
+  pinMode(LED_PIN_G, OUTPUT);
+  pinMode(LED_PIN_B, OUTPUT);
+  analogWrite(LED_PIN_R, 0);
+  analogWrite(LED_PIN_G, 0);
+  analogWrite(LED_PIN_B, 0);
+  pixels.begin();
   resetState();
 }
 
@@ -75,17 +99,29 @@ unsigned nextBufferPosition(unsigned cpos)
   return cpos;
 }
 
-void setState(LEDScreenState* state) {
-  if (state->played) return;
-  for(byte page=0; page<MATRIX_COUNT; page++) {
-    for(byte row=0; row<MATRIX_ROWS_COUNT; row++) {
-      if (state_old.blocks[page][row] != state->blocks[page][row]) {
-        lc.setRow(page, row, state->blocks[page][row]);
-        state_old.blocks[page][row] = state->blocks[page][row];
-      }
+void setState(LEDRingState* state) {
+  if (state->command != CMD_PLAY) return;
+  bool state_changed = false;
+  for(byte i=0; i<LEDRING_PIXELS; i++) {
+    if (state_old.ring_state[i].r != state->ring_state[i].r || state_old.ring_state[i].g != state->ring_state[i].g || state_old.ring_state[i].b != state->ring_state[i].b) {
+      pixels.setPixelColor(i, pixels.Color(state->ring_state[i].r,state->ring_state[i].g,state->ring_state[i].b));
+      state_old.ring_state[i] = state->ring_state[i];
+      state_changed = true;
     }
   }
-  state->played = true;
+  if (state_changed) {
+    pixels.show();
+  }
+  if (state_old.led_state.r != state->led_state.r) {
+    analogWrite(LED_PIN_R, state_old.led_state.r = state->led_state.r);
+  }
+  if (state_old.led_state.g != state->led_state.g) {
+    analogWrite(LED_PIN_G, state_old.led_state.g = state->led_state.g);
+  }
+  if (state_old.led_state.b != state->led_state.b) {
+    analogWrite(LED_PIN_B, state_old.led_state.b = state->led_state.b);
+  }
+  state->command = CMD_NONE;
   last_played_pos = state->state_index;
   last_state_delay = state->timeout;
   last_state_millis = millis();
@@ -131,7 +167,7 @@ void loop() {
       for(byte i=0; i<STATE_SIZE; i++) {
         next_pos[i] = Serial.read();
       }
-      if (state_buffer[buffer_writeposition].hash == 0 && state_buffer[buffer_writeposition].state_index == 0 && state_buffer[buffer_writeposition].timeout == 0 && state_buffer[buffer_writeposition].played == 'R') {
+      if (state_buffer[buffer_writeposition].hash == 0 && state_buffer[buffer_writeposition].state_index == 0 && state_buffer[buffer_writeposition].timeout == 0 && state_buffer[buffer_writeposition].command == CMD_RESET) {
         resetState();
         delay(100);
         return;

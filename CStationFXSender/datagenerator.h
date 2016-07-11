@@ -6,6 +6,10 @@
 #include <QByteArray>
 #include "Crc16.h"
 
+#define CMD_PLAY 0
+#define CMD_NONE 1
+#define CMD_RESET 'R'
+
 #if defined(WIN32) || defined(__WATCOMC__) || defined(_WIN32) || defined(__WIN32__)
     #define __PACKED                         /* dummy */
 #else
@@ -19,7 +23,7 @@
 struct StateStruct {
     uint32_t state_index __PACKED;
     uint32_t timeout __PACKED;
-    uint16_t played __PACKED;
+    uint16_t command __PACKED;
     uint16_t hash __PACKED;
 } __PACKED;
 

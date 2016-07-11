@@ -36,7 +36,7 @@ LEDRingState DataGeneratorLEDRing::getNextState(uint32_t full_index)
     //state.state[(full_index+6) % LEDRING_PIXELS] = Color(0, 0, 0);
 
     state.timeout = base_timeout;
-    state.played = 0;
+    state.command = CMD_PLAY;
     state.hash = 0;
     state.hash = getHash((void*) &state);
 
@@ -49,7 +49,7 @@ LEDRingState DataGeneratorLEDRing::getEmptyState(uint32_t full_index)
 
     memset(state.state, 0, sizeof(state.state));
     state.state_index = full_index;
-    state.played = 0;
+    state.command = CMD_PLAY;
     state.hash = 0;
     state.hash = getHash((void*) &state);
 

@@ -144,7 +144,7 @@ void SerialFXWriter::resetBuffers()
         send_buffer.append(bytearray);
     }
     ((StateStruct*)send_buffer[0]->data())->hash = 0;
-    ((StateStruct*)send_buffer[0]->data())->played = 'R';
+    ((StateStruct*)send_buffer[0]->data())->command = CMD_RESET;
     ((StateStruct*)send_buffer[0]->data())->timeout = 0;
     request_write_position = request_confirm_position = request_generate_position = send_buffer.size()-1;
 }

@@ -39,7 +39,7 @@ LEDScreenState DataGeneratorLEDScreen::getNextState(uint32_t full_index)
     state.blocks[page][row] |= 1 << col;
 
     state.timeout = base_timeout;
-    state.played = 0;
+    state.command = CMD_PLAY;
     state.hash = 0;
     state.hash = getHash((void*) &state);
 
@@ -52,7 +52,7 @@ LEDScreenState DataGeneratorLEDScreen::getEmptyState(uint32_t full_index)
 
     memset(state.blocks, 0, sizeof(state.blocks));
     state.state_index = full_index;
-    state.played = 0;
+    state.command = CMD_PLAY;
     state.hash = 0;
     state.hash = getHash((void*) &state);
 

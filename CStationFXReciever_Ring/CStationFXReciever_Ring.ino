@@ -10,16 +10,20 @@
 #define LEDRING_PIN 6
 #define LEDRING_PIXELS 24
 
-#define STATE_BUFFER_SIZE 6
+#define STATE_BUFFER_SIZE 4
 #define BAUD_RATE 115200
 #define MAX_RECIEVE_INTERVAL 5000
+
+#define CMD_PLAY 0
+#define CMD_NONE 1
+#define CMD_RESET 'R'
 
 #define __PACKED __attribute__((packed))
 
 struct StateStruct {
     uint32_t state_index __PACKED;
     uint32_t timeout __PACKED;
-    uint16_t played __PACKED;
+    uint16_t command __PACKED;
     uint16_t hash __PACKED;
 } __PACKED;
 
@@ -29,7 +33,7 @@ struct RGBPixel {
   uint8_t b __PACKED;
 } __PACKED;
 struct LEDRingState : StateStruct {
-    RGBPixel state[LEDRING_PIXELS] __PACKED;
+    RGBPixel ring_state[LEDRING_PIXELS] __PACKED;
 } __PACKED;
 
 #define STATE_SIZE sizeof(LEDRingState)
@@ -62,9 +66,9 @@ void resetState() {
   pixels.clear();
   pixels.show();
   for(byte i=0; i<LEDRING_PIXELS; i++) {
-    state_old.state[i].r = 0;
-    state_old.state[i].g = 0;
-    state_old.state[i].b = 0;
+    state_old.ring_state[i].r = 0;
+    state_old.ring_state[i].g = 0;
+    state_old.ring_state[i].b = 0;
   }
 }
 
@@ -83,19 +87,19 @@ unsigned nextBufferPosition(unsigned cpos)
 }
 
 void setState(LEDRingState* state) {
-  if (state->played) return;
+  if (state->command != CMD_PLAY) return;
   bool state_changed = false;
   for(byte i=0; i<LEDRING_PIXELS; i++) {
-    if (state_old.state[i].r != state->state[i].r || state_old.state[i].g != state->state[i].g || state_old.state[i].b != state->state[i].b) {
-      pixels.setPixelColor(i, pixels.Color(state->state[i].r,state->state[i].g,state->state[i].b));
-      state_old.state[i] = state->state[i];
+    if (state_old.ring_state[i].r != state->ring_state[i].r || state_old.ring_state[i].g != state->ring_state[i].g || state_old.ring_state[i].b != state->ring_state[i].b) {
+      pixels.setPixelColor(i, pixels.Color(state->ring_state[i].r,state->ring_state[i].g,state->ring_state[i].b));
+      state_old.ring_state[i] = state->ring_state[i];
       state_changed = true;
     }
   }
   if (state_changed) {
     pixels.show();
   }
-  state->played = true;
+  state->command = CMD_NONE;
   last_played_pos = state->state_index;
   last_state_delay = state->timeout;
   last_state_millis = millis();
@@ -141,7 +145,7 @@ void loop() {
       for(byte i=0; i<STATE_SIZE; i++) {
         next_pos[i] = Serial.read();
       }
-      if (state_buffer[buffer_writeposition].hash == 0 && state_buffer[buffer_writeposition].state_index == 0 && state_buffer[buffer_writeposition].timeout == 0 && state_buffer[buffer_writeposition].played == 'R') {
+      if (state_buffer[buffer_writeposition].hash == 0 && state_buffer[buffer_writeposition].state_index == 0 && state_buffer[buffer_writeposition].timeout == 0 && state_buffer[buffer_writeposition].command == CMD_RESET) {
         resetState();
         delay(100);
         return;
