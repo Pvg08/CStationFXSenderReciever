@@ -51,6 +51,7 @@ LEDRingRGBState DataGeneratorLEDRingRGB::getEmptyState(uint32_t full_index)
     memset(state.ring_state, 0, sizeof(state.ring_state));
     state.led_state = state.ring_state[0];
 
+    state.timeout = base_timeout;
     state.state_index = full_index;
     state.command = CMD_PLAY;
     state.hash = 0;

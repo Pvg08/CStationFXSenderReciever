@@ -1,19 +1,17 @@
 /* 
  *  This is program for control of
- *  NeoPixel RGB 24-LED Ring + additional RGB LED
+ *  RGB LED + White LED (or LED Strips)
  *  via USB
 */
 
 #include <Crc16.h>
-#include <Adafruit_NeoPixel.h>
 
 #define LED_PIN_R 2
 #define LED_PIN_G 4
 #define LED_PIN_B 3
-#define LEDRING_PIN 6
-#define LEDRING_PIXELS 24
+#define LED_PIN_W 5
 
-#define STATE_BUFFER_SIZE 4
+#define STATE_BUFFER_SIZE 6
 #define BAUD_RATE 115200
 #define MAX_RECIEVE_INTERVAL 5000
 
@@ -30,20 +28,17 @@ struct StateStruct {
     uint16_t hash __PACKED;
 } __PACKED;
 
-struct RGBPixel {
+struct LEDRGBWState : StateStruct {
   uint8_t r __PACKED;
   uint8_t g __PACKED;
   uint8_t b __PACKED;
-} __PACKED;
-struct LEDRingState : StateStruct {
-    RGBPixel ring_state[LEDRING_PIXELS] __PACKED;
-    RGBPixel led_state __PACKED;
+  uint8_t w __PACKED;
 } __PACKED;
 
-#define STATE_SIZE sizeof(LEDRingState)
+#define STATE_SIZE sizeof(LEDRGBWState)
 
-struct LEDRingState state_buffer[STATE_BUFFER_SIZE] = {};
-LEDRingState state_old;
+struct LEDRGBWState state_buffer[STATE_BUFFER_SIZE] = {};
+LEDRGBWState state_old;
 
 unsigned buffer_playposition;
 unsigned buffer_writeposition;
@@ -55,7 +50,6 @@ uint32_t last_state_millis;
 uint32_t last_state_delay;
 
 Crc16 crc;
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(LEDRING_PIXELS, LEDRING_PIN, NEO_GRB + NEO_KHZ800);
 
 void resetState() {
   state_buffer[0].state_index = 0;
@@ -67,19 +61,14 @@ void resetState() {
   last_state_millis = 0;
   last_state_delay = 0;
   first_reading = false;
-  pixels.clear();
-  pixels.show();
-  for(byte i=0; i<LEDRING_PIXELS; i++) {
-    state_old.ring_state[i].r = 0;
-    state_old.ring_state[i].g = 0;
-    state_old.ring_state[i].b = 0;
-  }
-  state_old.led_state.r = 0;
-  state_old.led_state.g = 0;
-  state_old.led_state.b = 0;
+  state_old.r = 0;
+  state_old.g = 0;
+  state_old.b = 0;
+  state_old.w = 0;
   analogWrite(LED_PIN_R, 0);
   analogWrite(LED_PIN_G, 0);
   analogWrite(LED_PIN_B, 0);
+  analogWrite(LED_PIN_W, 0);
 }
 
 void setup() {
@@ -88,7 +77,7 @@ void setup() {
   pinMode(LED_PIN_R, OUTPUT);
   pinMode(LED_PIN_G, OUTPUT);
   pinMode(LED_PIN_B, OUTPUT);
-  pixels.begin();
+  pinMode(LED_PIN_W, OUTPUT);
   resetState();
 }
 
@@ -99,27 +88,19 @@ unsigned nextBufferPosition(unsigned cpos)
   return cpos;
 }
 
-void setState(LEDRingState* state) {
+void setState(LEDRGBWState* state) {
   if (state->command != CMD_PLAY) return;
-  bool state_changed = false;
-  for(byte i=0; i<LEDRING_PIXELS; i++) {
-    if (state_old.ring_state[i].r != state->ring_state[i].r || state_old.ring_state[i].g != state->ring_state[i].g || state_old.ring_state[i].b != state->ring_state[i].b) {
-      pixels.setPixelColor(i, pixels.Color(state->ring_state[i].r,state->ring_state[i].g,state->ring_state[i].b));
-      state_old.ring_state[i] = state->ring_state[i];
-      state_changed = true;
-    }
+  if (state_old.r != state->r) {
+    analogWrite(LED_PIN_R, state_old.r = state->r);
   }
-  if (state_changed) {
-    pixels.show();
+  if (state_old.g != state->g) {
+    analogWrite(LED_PIN_G, state_old.g = state->g);
   }
-  if (state_old.led_state.r != state->led_state.r) {
-    analogWrite(LED_PIN_R, state_old.led_state.r = state->led_state.r);
+  if (state_old.b != state->b) {
+    analogWrite(LED_PIN_B, state_old.b = state->b);
   }
-  if (state_old.led_state.g != state->led_state.g) {
-    analogWrite(LED_PIN_G, state_old.led_state.g = state->led_state.g);
-  }
-  if (state_old.led_state.b != state->led_state.b) {
-    analogWrite(LED_PIN_B, state_old.led_state.b = state->led_state.b);
+  if (state_old.w != state->w) {
+    analogWrite(LED_PIN_W, state_old.w = state->w);
   }
   state->command = CMD_NONE;
   last_played_pos = state->state_index;

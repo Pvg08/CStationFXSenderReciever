@@ -48,6 +48,8 @@ LEDRingState DataGeneratorLEDRing::getEmptyState(uint32_t full_index)
     LEDRingState state;
 
     memset(state.state, 0, sizeof(state.state));
+
+    state.timeout = base_timeout;
     state.state_index = full_index;
     state.command = CMD_PLAY;
     state.hash = 0;

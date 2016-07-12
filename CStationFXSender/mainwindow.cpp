@@ -11,9 +11,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     on_toolButton_refresh_clicked();
 
-    generator = new DataGeneratorLEDScreen();
+    //generator = new DataGeneratorLEDScreen();
     //generator = new DataGeneratorLEDRing();
     //generator = new DataGeneratorLEDRingRGB();
+    generator = new DataGeneratorLEDRGBW();
 
     generator->setBaseTimeout(ui->spinBox_timeout->value());
     transactionCount = 0;

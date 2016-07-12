@@ -51,6 +51,8 @@ LEDScreenState DataGeneratorLEDScreen::getEmptyState(uint32_t full_index)
     LEDScreenState state;
 
     memset(state.blocks, 0, sizeof(state.blocks));
+
+    state.timeout = base_timeout;
     state.state_index = full_index;
     state.command = CMD_PLAY;
     state.hash = 0;

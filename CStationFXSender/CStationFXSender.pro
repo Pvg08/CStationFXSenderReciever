@@ -19,7 +19,8 @@ SOURCES += main.cpp\
     crc16.cpp \
     datageneratorledscreen.cpp \
     datageneratorledring.cpp \
-    datageneratorledringrgb.cpp
+    datageneratorledringrgb.cpp \
+    datageneratorledrgbw.cpp
 
 HEADERS  += mainwindow.h \
     serialfxwriter.h \
@@ -27,6 +28,7 @@ HEADERS  += mainwindow.h \
     crc16.h \
     datageneratorledscreen.h \
     datageneratorledring.h \
-    datageneratorledringrgb.h
+    datageneratorledringrgb.h \
+    datageneratorledrgbw.h
 
 FORMS    += mainwindow.ui
