@@ -8,6 +8,7 @@
 #include "datageneratorledring.h"
 #include "datageneratorledringrgb.h"
 #include "datageneratorledrgbw.h"
+#include "datageneratorservolaser.h"
 
 namespace Ui {
 class MainWindow;
