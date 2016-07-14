@@ -150,6 +150,41 @@
      <string>0 errors</string>
     </property>
    </widget>
+   <widget class="QComboBox" name="comboBox_device">
+    <property name="geometry">
+     <rect>
+      <x>348</x>
+      <y>380</y>
+      <width>151</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>RGBW</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Led Matrix</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Led Ring</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Led Ring + RGB Led</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Servo</string>
+     </property>
+    </item>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
  </widget>

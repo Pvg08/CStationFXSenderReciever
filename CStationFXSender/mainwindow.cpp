@@ -11,13 +11,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     on_toolButton_refresh_clicked();
 
-    //generator = new DataGeneratorLEDScreen();
-    //generator = new DataGeneratorLEDRing();
-    //generator = new DataGeneratorLEDRingRGB();
-    //generator = new DataGeneratorLEDRGBW();
-    generator = new DataGeneratorServoLaser();
-
-    generator->setBaseTimeout(ui->spinBox_timeout->value());
+    generator = NULL;
     transactionCount = 0;
     connect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     connect(&thread, SIGNAL(error(QString)), this, SLOT(processError(QString)));
@@ -30,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     if (thread.isRunning()) thread.terminate();
-    delete generator;
+    if (generator) delete generator;
     delete ui;
 }
 
@@ -41,6 +35,38 @@ void MainWindow::transaction()
     millis = QDateTime::currentDateTime().toMSecsSinceEpoch();
     ui->textEdit_log->append(tr("Status: Running, connected to port %1.").arg(ui->comboBox_port->currentText()));
     ui->statusBar->showMessage(tr("Status: Running, connected to port %1.").arg(ui->comboBox_port->currentText()), 10000);
+
+    if (generator) {
+        delete generator;
+    }
+
+    switch (ui->comboBox_device->currentIndex()) {
+        case 0:
+            generator = new DataGeneratorLEDRGBW();
+            processLog("DataGeneratorLEDRGBW Generator");
+        break;
+        case 1:
+            generator = new DataGeneratorLEDScreen();
+            processLog("DataGeneratorLEDScreen Generator");
+        break;
+        case 2:
+            generator = new DataGeneratorLEDRing();
+            processLog("DataGeneratorLEDRing Generator");
+        break;
+        case 3:
+            generator = new DataGeneratorLEDRingRGB();
+            processLog("DataGeneratorLEDRingRGB Generator");
+        break;
+        case 4:
+            generator = new DataGeneratorServoLaser();
+            processLog("DataGeneratorServoLaser Generator");
+        break;
+        default:
+            generator = new DataGeneratorLEDRGBW();
+            processLog("DataGeneratorLEDRGBW Generator");
+    }
+    generator->setBaseTimeout(ui->spinBox_timeout->value());
+
     thread.listen(ui->comboBox_port->currentText(), 30000, generator);
 }
 
@@ -65,7 +91,7 @@ void MainWindow::processTimeout(const QString &s)
 
 void MainWindow::processLog(const QString &s)
 {
-    ui->textEdit_log->append(s);
+    if (ui->checkBox_detailed->isChecked()) ui->textEdit_log->append(s);
 }
 
 void MainWindow::frame_played()
@@ -114,5 +140,5 @@ void MainWindow::on_checkBox_detailed_clicked(bool checked)
 
 void MainWindow::on_spinBox_timeout_valueChanged(int arg1)
 {
-    generator->setBaseTimeout(arg1);
+    if (generator) generator->setBaseTimeout(arg1);
 }

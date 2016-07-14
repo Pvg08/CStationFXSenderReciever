@@ -40,7 +40,7 @@ void SerialFXWriter::run()
     bool data_written = false;
 
     mutex.lock();
-    QString currentPortName;
+    QString currentPortName = "";
     if (currentPortName != portName) {
         currentPortName = portName;
         currentPortNameChanged = true;
@@ -50,8 +50,6 @@ void SerialFXWriter::run()
 
     QSerialPort serial;
 
-    serial.setBaudRate(115200);
-
     emit log("Thread started...");
 
     while (!quit) {
@@ -59,12 +57,19 @@ void SerialFXWriter::run()
         if (currentPortNameChanged) {
             serial.close();
             serial.setPortName(currentPortName);
+            serial.setBaudRate(QSerialPort::Baud115200);
 
             if (!serial.open(QIODevice::ReadWrite)) {
                 emit error(tr("Can't open %1, error code %2")
                            .arg(portName).arg(serial.error()));
                 return;
             }
+            emit log("Baud rate: "+QString::number(serial.baudRate()));
+            emit log("Writeable: "+QString::number(serial.isWritable()));
+            emit log("Readable: "+QString::number(serial.isReadable()));
+            emit log("dataBits: "+QString::number(serial.dataBits()));
+            emit log("stopBits: "+QString::number(serial.stopBits()));
+            emit log("parity: "+QString::number(serial.parity()));
         }
 
         if (reset_states) {
