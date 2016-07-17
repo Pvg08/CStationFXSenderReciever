@@ -56,14 +56,18 @@ void SerialFXWriter::run()
 
         if (currentPortNameChanged) {
             serial.close();
-            serial.setPortName(currentPortName);
-            serial.setBaudRate(QSerialPort::Baud115200);
+            #if defined(WIN32) || defined(__WATCOMC__) || defined(_WIN32) || defined(__WIN32__)
+                serial.setPortName(currentPortName);
+            #else
+                serial.setPortName("/dev/"+currentPortName);
+            #endif;
 
             if (!serial.open(QIODevice::ReadWrite)) {
                 emit error(tr("Can't open %1, error code %2")
                            .arg(portName).arg(serial.error()));
                 return;
             }
+            serial.setBaudRate(QSerialPort::Baud115200);
             emit log("Baud rate: "+QString::number(serial.baudRate()));
             emit log("Writeable: "+QString::number(serial.isWritable()));
             emit log("Readable: "+QString::number(serial.isReadable()));

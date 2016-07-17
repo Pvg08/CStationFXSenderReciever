@@ -22,13 +22,18 @@ LEDRGBWState DataGeneratorLEDRGBW::getNextState(uint32_t full_index)
 {
     LEDRGBWState state;
 
-    float findex = abs(sin(full_index / 100.0));
+    float findex = fabs(sin(full_index / 100.0));
 
     state.state_index = full_index;
-    state.r = fmin(255, findex * 100 + (1-findex) * 0);
-    state.g = fmin(255, findex * 33 + (1-findex) * 76);
-    state.b = fmin(255, findex * 0 + (1-findex) * 255);
-    state.w = fmin(255, findex * 255 + (1-findex) * 10);
+    state.r = findex * 100 + (1-findex) * 0;
+    state.g = findex * 33 + (1-findex) * 76;
+    state.b = findex * 0 + (1-findex) * 255;
+    state.w = findex * 255 + (1-findex) * 10;
+
+    if (full_index % 5 == 0) {
+        state.r = 255;
+        state.w = 255;
+    }
 
     state.timeout = base_timeout;
     state.command = CMD_PLAY;

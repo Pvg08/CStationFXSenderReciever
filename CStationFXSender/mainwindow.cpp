@@ -123,9 +123,16 @@ void MainWindow::on_pushButton_start_clicked()
 
 void MainWindow::on_toolButton_refresh_clicked()
 {
+    int usb_index = -1;
     ui->comboBox_port->clear();
     foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
         ui->comboBox_port->addItem(info.portName());
+        if (info.portName().indexOf("USB",0,Qt::CaseInsensitive)>=0 || info.portName().indexOf("COM",0,Qt::CaseInsensitive)>=0) {
+            usb_index = ui->comboBox_port->count()-1;
+        }
+    }
+    if (usb_index > -1) {
+        ui->comboBox_port->setCurrentIndex(usb_index);
     }
 }
 
@@ -133,8 +140,10 @@ void MainWindow::on_checkBox_detailed_clicked(bool checked)
 {
     if (checked) {
         connect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
+        connect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     } else {
         disconnect(&thread, SIGNAL(log(QString)), this, SLOT(processLog(QString)));
+        disconnect(&thread, SIGNAL(response(QString)), this, SLOT(showResponse(QString)));
     }
 }
 
