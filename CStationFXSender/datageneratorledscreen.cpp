@@ -22,6 +22,29 @@ LEDScreenState DataGeneratorLEDScreen::getNextState(uint32_t full_index)
 {
     LEDScreenState state;
 
+    unsigned bindex = full_index % 1000;
+
+    if (bindex == 0) {
+        state = getBrightnessState(full_index, 1);
+        return state;
+    }
+    if (bindex == 100) {
+        state = getBrightnessState(full_index, 5);
+        return state;
+    }
+    if (bindex == 300) {
+        state = getBrightnessState(full_index, 15);
+        return state;
+    }
+    if (bindex == 600) {
+        state = getBrightnessState(full_index, 1);
+        return state;
+    }
+    if (bindex == 900) {
+        state = getBrightnessState(full_index, 0);
+        return state;
+    }
+
     memset(state.blocks, 0, sizeof(state.blocks));
     state.state_index = full_index;
 
@@ -55,6 +78,27 @@ LEDScreenState DataGeneratorLEDScreen::getEmptyState(uint32_t full_index)
     state.timeout = base_timeout;
     state.state_index = full_index;
     state.command = CMD_PLAY;
+    state.hash = 0;
+    state.hash = getHash((void*) &state);
+
+    return state;
+}
+
+LEDScreenState DataGeneratorLEDScreen::getBrightnessState(uint32_t full_index, uint8_t brightness)
+{
+    LEDScreenState state;
+
+    memset(state.blocks, 0, sizeof(state.blocks));
+
+    if (brightness>MATRIX_MAX_BRIGHTNESS_LEVEL) brightness = MATRIX_MAX_BRIGHTNESS_LEVEL;
+
+    for(unsigned i=0; i<MATRIX_COUNT; i++) {
+        state.blocks[i][0] = brightness;
+    }
+
+    state.timeout = base_timeout;
+    state.state_index = full_index;
+    state.command = CMD_BRIGHTNESS;
     state.hash = 0;
     state.hash = getHash((void*) &state);
 

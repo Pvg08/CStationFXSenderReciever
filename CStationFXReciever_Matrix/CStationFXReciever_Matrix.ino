@@ -17,6 +17,7 @@
 #define CMD_PLAY 0
 #define CMD_NONE 1
 #define CMD_RESET 'R'
+#define CMD_BRIGHTNESS 'B'
 
 #define __PACKED __attribute__((packed))
 
@@ -80,6 +81,16 @@ unsigned nextBufferPosition(unsigned cpos)
 }
 
 void setState(LEDScreenState* state) {
+  if (state->command == CMD_BRIGHTNESS) {
+    for(byte page=0; page<MATRIX_COUNT; page++) {
+      lc.setIntensity(page,state->blocks[page][0]);
+    }
+    state->command = CMD_NONE;
+    last_played_pos = state->state_index;
+    last_state_delay = state->timeout;
+    last_state_millis = millis();
+    return;
+  }
   if (state->command != CMD_PLAY) return;
   for(byte page=0; page<MATRIX_COUNT; page++) {
     for(byte row=0; row<MATRIX_ROWS_COUNT; row++) {
